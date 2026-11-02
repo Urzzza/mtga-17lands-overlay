@@ -12,7 +12,7 @@ internal sealed class OverlayWindow : Window
     private readonly StackPanel panel = new();
     internal OverlayWindow()
     {
-        Title = "MTGA 17Lands Overlay"; Width = 430; SizeToContent = SizeToContent.Height;
+        Title = "MTGA 17Lands Overlay"; Icon = AppIcon.Image; Width = 430; SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
         ShowInTaskbar = false; ShowActivated = false; Topmost = true; IsHitTestVisible = false;
         Content = new Border { Background = new SolidColorBrush(Color.FromRgb(20, 23, 30)), CornerRadius = new CornerRadius(8), Padding = new Thickness(12), Child = panel };

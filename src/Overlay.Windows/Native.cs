@@ -23,6 +23,17 @@ internal static class Native
         long style = GetWindowLongPtr(handle, -20).ToInt64();
         SetWindowLongPtr(handle, -20, new IntPtr(style | 0x20 | 0x80000 | 0x8000000 | 0x80));
     }
+    internal static void PositionPreview(Window window, double offsetX, double offsetY, System.Windows.Forms.Screen screen)
+    {
+        // Use physical pixels consistently, including negative coordinates on secondary monitors.
+        var area = screen.WorkingArea;
+        uint dpi = GetDpiForWindow(new WindowInteropHelper(window).Handle);
+        double scale = Math.Max(96, dpi) / 96.0;
+        int width = (int)Math.Ceiling(window.ActualWidth * scale), height = (int)Math.Ceiling(window.ActualHeight * scale);
+        int x = area.Left + Math.Max(0, Math.Min((int)(offsetX * scale), area.Width - width));
+        int y = area.Top + Math.Max(0, area.Height - height - (int)(offsetY * scale));
+        SetWindowPos(new WindowInteropHelper(window).Handle, new IntPtr(-1), x, y, 0, 0, 0x10 | 0x1 | 0x40);
+    }
     internal static bool Position(Window window, double offsetX, double offsetY)
     {
         foreach (var process in Process.GetProcessesByName("MTGA"))

@@ -82,11 +82,32 @@ try
     var tie = data with { Cards = new() { ["Alpha"] = new(2, 1), ["Beta"] = new(4, 2) } };
     Check(Ranking.Rank(new("x", "DSK", "PremierDraft", 1, 1, [2, 1], true), cards, tie)[0].Name == "Alpha", "alphabetical ties");
     try { Storage.ValidateKey("../escape", "PremierDraft"); throw new Exception("Traversal accepted"); } catch (ArgumentException) { Check(true, "invalid set rejected"); }
+    var activity = new ActivityLog(3);
+    activity.Write("first"); activity.Write("second"); activity.Write("third"); activity.Write("fourth");
+    var logSnapshot = activity.Snapshot();
+    Check(logSnapshot.Entries.Length == 3 && logSnapshot.Entries[0].Message == "second" && logSnapshot.Entries[^1].Sequence == 4, "activity log retains bounded ordered history");
+    activity.Clear();
+    Check(activity.Snapshot().Version > logSnapshot.Version && activity.Snapshot().Entries.Length == 0, "activity clear updates view version");
+    activity.Write("line1\nline2\t" + new string('x', 1200));
+    Check(activity.Snapshot().Entries[0].Message.Length == 1000 && !activity.Snapshot().Entries[0].Message.Any(char.IsControl), "activity messages are bounded single-line summaries");
+    var concurrentLog = new ActivityLog(500);
+    Parallel.For(0, 1000, i => concurrentLog.Write($"event {i}"));
+    var concurrentSnapshot = concurrentLog.Snapshot();
+    Check(concurrentSnapshot.Entries.Length == 500 && concurrentSnapshot.Entries.Select(e => e.Sequence).SequenceEqual(Enumerable.Range(501, 500).Select(i => (long)i)), "concurrent activity writes preserve order and capacity");
+    var setNames = SetNames.Bundled();
+    Check(new SetOption("DSK", SetNames.Name("DSK", setNames)).Display == "Duskmourn: House of Horror (DSK)", "full set name and code in bundled offline labels");
+    Check(SetNames.Name("mh3", setNames) == "Modern Horizons 3", "set names ignore code case");
+    Check(new SetOption("NEW", SetNames.Name("NEW", setNames)).Display == "NEW", "unknown set falls back to code");
+    using (var namesJson = JsonDocument.Parse("{\"data\":[{\"code\":\"dsk\",\"name\":\"Duskmourn: House of Horror\"},{\"code\":\"../bad\",\"name\":\"Ignored\"}]}"))
+        Check(SetNames.Parse(namesJson.RootElement).Count == 1, "set metadata validates codes and normalizes keys");
+    await ImporterTests.RunAsync(root, Check);
     await PublicDataTests.RunAsync(root, Check);
     if (args.Contains("--live-catalog"))
     {
         using var http = PublicDataClient.CreateHttpClient();
         var published = await new PublicDataClient(http).GetCatalogAsync(default);
+        var liveNames = await SetNames.FetchAsync(http, default);
+        Check(liveNames.ContainsKey("DSK"), "live MTGJSON set-name lookup");
         Check(published.Length > 0 && published.All(PublicDataClient.IsAllowed), $"live public catalog: {published.Length} supported set/format pairs");
     }
     Console.WriteLine($"{passed} checks passed.");

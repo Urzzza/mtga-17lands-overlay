@@ -95,7 +95,7 @@ public sealed class PublicDataClient(HttpClient http)
                 await CopyAsync(source, destination, MaxDownloadBytes, total, progress, ct);
             progress?.Report(new("Importing"));
             var importProgress = progress is null ? null : new InlineProgress<long>(games => progress.Report(new("Importing", Games: games)));
-            var dataset = await Task.Run(() => StatisticsImporter.ImportAsync(temp, entry.Set, entry.Format, importProgress, ct), ct);
+            var dataset = await StatisticsImporter.ImportAsync(temp, entry.Set, entry.Format, importProgress, ct);
             dataset = dataset with { Source = entry.Url.AbsoluteUri };
             await storage.WriteAsync(Path.GetFileName(storage.DatasetPath(entry.Set, entry.Format)), dataset, ct);
             progress?.Report(new("Complete"));

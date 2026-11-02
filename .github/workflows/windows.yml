@@ -22,7 +22,7 @@ jobs:
         run: |
           dotnet publish src/Overlay.Windows -c Release -r win-x64 --self-contained true -p:PublishTrimmed=false -o artifacts/MTGA17LandsOverlay
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Copy-Item README.md,WINDOWS-ACCEPTANCE.md artifacts/MTGA17LandsOverlay/
+          Copy-Item README.md,WINDOWS-ACCEPTANCE.md,THIRD-PARTY-NOTICES.txt artifacts/MTGA17LandsOverlay/
           Compress-Archive artifacts/MTGA17LandsOverlay/* artifacts/MTGA17LandsOverlay-win-x64-unvalidated.zip
       - uses: actions/upload-artifact@v4
         with:

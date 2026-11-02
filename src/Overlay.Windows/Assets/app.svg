@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<defs>
+ <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#233852"/><stop offset="1" stop-color="#0b1426"/></linearGradient>
+ <linearGradient id="card" x2=".8" y2="1"><stop stop-color="#fcdf91"/><stop offset="1" stop-color="#db9d43"/></linearGradient>
+ <linearGradient id="mint" x2="1" y2="0"><stop stop-color="#43d4b3"/><stop offset="1" stop-color="#a2ffd6"/></linearGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#bg)"/>
+<rect x="9" y="9" width="238" height="238" rx="53" fill="none" stroke="#49617d" stroke-width="2"/>
+<g transform="rotate(-16 102 131)"><rect x="49" y="56" width="106" height="148" rx="14" fill="#122338" stroke="#527e9e" stroke-width="7"/></g>
+<rect x="85" y="44" width="116" height="164" rx="16" fill="url(#card)"/>
+<rect x="95" y="54" width="96" height="144" rx="9" fill="#182a40"/>
+<path d="M143 69l5 12 13 2-10 9 3 13-11-7-12 7 3-13-10-9 13-2z" fill="#f6d78b"/>
+<rect x="108" y="156" width="15" height="28" rx="4" fill="#48c9ab"/>
+<rect x="136" y="141" width="15" height="43" rx="4" fill="#6ee2bd"/>
+<rect x="164" y="121" width="15" height="63" rx="4" fill="#a0f4ce"/>
+<path d="M109 140l30-24 17 6 23-24m-20 0h20v20" fill="none" stroke="url(#mint)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

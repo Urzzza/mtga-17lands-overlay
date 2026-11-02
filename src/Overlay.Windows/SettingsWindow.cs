@@ -21,8 +21,8 @@ internal sealed class SettingsWindow : Window
     private readonly Button metadataImport = new() { Content = "Import Scryfall metadata JSON" };
     internal SettingsWindow(Program app)
     {
-        this.app = app; Title = "MTGA overlay — settings and data"; Width = 600; Height = 740;
-        Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        this.app = app; Title = "MTGA overlay — settings and data"; Width = 1060; MinWidth = 800; Height = 740; Icon = AppIcon.Image;
+        Content = ActivityPanel.Beside(new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, app.Activity);
         Label("Arena: Options → Account → Detailed Logs (Plugin Support), then restart Arena. Logs remain on this PC.");
         log = Field("Arena Player.log path", app.Settings.LogPath);
         var browse = Button("Choose log", () => { var dialog = new OpenFileDialog { Filter = "Arena log|*.log|All files|*.*" }; if (dialog.ShowDialog() == true) log.Text = dialog.FileName; });
@@ -62,9 +62,9 @@ internal sealed class SettingsWindow : Window
     private async Task RunAsync(Func<Task> action)
     {
         try { await action(); }
-        catch (OperationCanceledException) { status.Text = "Import cancelled. Existing data retained."; }
+        catch (OperationCanceledException) { status.Text = "Import cancelled. Existing data retained."; app.Activity.Write(status.Text); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or FormatException or OverflowException or System.Text.Json.JsonException or Microsoft.VisualBasic.FileIO.MalformedLineException)
-        { status.Text = ex.Message; }
+        { status.Text = ex.Message; app.Activity.Write("Import/settings error: " + ex.Message); }
     }
     private async Task ImportAsync(bool metadata)
     {
@@ -77,15 +77,17 @@ internal sealed class SettingsWindow : Window
         await RunAsync(async () =>
         {
             status.Text = "Importing…";
+            app.Activity.Write(metadata ? "Importing local card metadata…" : $"Importing local game data: {chosenSet} / {chosenFormat}…");
             if (metadata) await app.ImportMetadataAsync(dialog.FileName, ct);
             else
             {
-                var progress = new Progress<long>(rows => status.Text = $"Processed {rows:N0} games…");
-                var data = await Task.Run(() => StatisticsImporter.ImportAsync(dialog.FileName, chosenSet, chosenFormat, progress, ct), ct);
+                var progress = new Progress<long>(rows => { status.Text = $"Processed {rows:N0} games…"; app.Activity.Progress("local-import", status.Text); });
+                var data = await StatisticsImporter.ImportAsync(dialog.FileName, chosenSet, chosenFormat, progress, ct);
                 await app.Store.WriteAsync(Path.GetFileName(app.Store.DatasetPath(chosenSet, chosenFormat)), data, ct);
                 status.Text = $"Imported {data.Set} / {data.Format}. Coverage: {data.CoverageStart ?? "unknown"} – {data.CoverageEnd ?? "unknown"}.";
             }
             if (metadata) status.Text = "Metadata imported.";
+            app.Activity.Write(status.Text);
         });
         import.Dispose(); import = null; gameImport.IsEnabled = metadataImport.IsEnabled = true;
     }
