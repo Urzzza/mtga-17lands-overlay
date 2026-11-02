@@ -82,6 +82,13 @@ try
     var tie = data with { Cards = new() { ["Alpha"] = new(2, 1), ["Beta"] = new(4, 2) } };
     Check(Ranking.Rank(new("x", "DSK", "PremierDraft", 1, 1, [2, 1], true), cards, tie)[0].Name == "Alpha", "alphabetical ties");
     try { Storage.ValidateKey("../escape", "PremierDraft"); throw new Exception("Traversal accepted"); } catch (ArgumentException) { Check(true, "invalid set rejected"); }
+    await PublicDataTests.RunAsync(root, Check);
+    if (args.Contains("--live-catalog"))
+    {
+        using var http = PublicDataClient.CreateHttpClient();
+        var published = await new PublicDataClient(http).GetCatalogAsync(default);
+        Check(published.Length > 0 && published.All(PublicDataClient.IsAllowed), $"live public catalog: {published.Length} supported set/format pairs");
+    }
     Console.WriteLine($"{passed} checks passed.");
 }
 finally { Directory.Delete(root, true); }

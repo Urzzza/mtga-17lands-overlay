@@ -38,7 +38,8 @@ internal sealed class SettingsWindow : Window
             await app.SaveSettingsAsync(new Settings { LogPath = log.Text.Trim(), SetOverride = set.Text.Trim(), FormatOverride = format.SelectedItem?.ToString(), Scale = Read(scale), Opacity = Read(opacity), OffsetX = Read(x), OffsetY = Read(y) });
             status.Text = "Settings saved.";
         }));
-        Label("17Lands public data — https://www.17lands.com/public_datasets\nDownload a game dataset, then assign its exact set and format below. No API token is needed. Imports can take several minutes. Locally calculated rates can differ from the website’s filtered statistics.");
+        Label("17Lands public data — https://www.17lands.com/public_datasets\nSelect sets and formats to download automatically, or import a previously downloaded file below. No API token is needed. Imports can take several minutes. Locally calculated rates can differ from the website’s filtered statistics.");
+        Button("Select sets and formats to download…", () => new DownloadWindow(app) { Owner = this }.ShowDialog());
         importSet = Field("Dataset set code (for example DSK)", app.Settings.SetOverride ?? "");
         importFormat = Format("Dataset format", false, "PremierDraft");
         gameImport.Margin = new Thickness(0, 8, 0, 0); panel.Children.Add(gameImport);

@@ -20,6 +20,7 @@ Record Windows version, Arena version and installation channel, GPU/driver, moni
 - [ ] Exit probe. Start normally and run an actual Premier, Traditional, and Quick Draft. Confirm each detected set/format, pack and pick number against Arena.
 - [ ] Verify unlogged P1P1 shows waiting, every logged pack replaces the prior one, each pick clears it, and drafting exit/completion hides it.
 - [ ] Start the app mid-draft; restart Arena; confirm logs recover without resurrecting a picked pack.
+- [ ] Open dataset downloads, select multiple sets/formats, confirm unavailable pairs are skipped, download/import a small selection, cancel another queue, and reopen to confirm selections are remembered.
 - [ ] Import a known dataset, verify a few card rates by hand, cancel a replacement, disconnect network, and verify cached statistics and metadata remain usable.
 
 If the fullscreen visibility/input test fails, **do not release or label fullscreen support as complete**. Capture the failing configuration and stop release work. Do not silently replace the requirement with windowed play, install Overwolf, alter Arena settings, or introduce process hooks. Revisit the rendering design with concrete Windows evidence.

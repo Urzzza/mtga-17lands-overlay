@@ -9,7 +9,9 @@ Standalone Windows 11 x64 draft overlay. Shows the **current pack**, with Englis
 1. Extract the entire portable ZIP to a writable folder and launch `Overlay.Windows.exe`. The .NET runtime is included. Windows may show an unsigned-app prompt; binaries are not code-signed.
 2. In Arena, enable **Options → Account → Detailed Logs (Plugin Support)**, then restart Arena.
 3. Open the overlay's tray icon → **Settings / import data**. Check the detected `Player.log` path.
-4. Download a **game dataset** from [17Lands Public Datasets](https://www.17lands.com/public_datasets). Import its `.csv` or `.csv.gz`, entering the exact set code and format. Imports are streamed, can take minutes, and support cancellation. A replacement overwrites that set/format's prior cache; do not import separate shards expecting them to merge.
+4. Click **Select sets and formats to download…**. The app loads the published [17Lands Public Datasets](https://www.17lands.com/public_datasets) catalog. Select one or more sets and any of Premier, Traditional (`TradDraft`), and Quick Draft, then click **Download and import selected**. Only published pairs are queued; the dialog shows how many requested pairs are unavailable. Choices are remembered for the next visit. Downloads run one at a time with byte progress, followed by game-import progress, and can be cancelled. Individual failures are reported while the remaining queue continues. Completed pairs remain installed after cancellation.
+
+   Alternatively, import a local `.csv` or `.csv.gz`, entering its exact set code and format. A replacement overwrites that set/format's prior cache; do not import separate shards expecting them to merge.
 5. Card metadata is fetched from Scryfall for missing Arena IDs and cached. For offline use, import a Scryfall bulk **card JSON array** that includes `arena_id`, `name`, and `mana_cost` / `card_faces`, from [Scryfall Bulk Data](https://scryfall.com/docs/api/bulk-data). You can combine metadata from several imports. Scryfall's oracle-only dataset may omit Arena printings; prefer default/all card data.
 6. Enter a supported draft. The panel appears 16 logical pixels from Arena's lower-left client corner while Arena is foreground. Tray controls provide preview, hide/show, and exit. Set/format overrides, scale, opacity, and offsets are in settings. Preview can be shown without Arena; fullscreen probe requires Arena foreground.
 
@@ -23,7 +25,9 @@ GIH rate = wins / games where at least one copy was in the kept opening hand or 
 
 Rows sort by full-precision rate, then English name, then Arena ID. Percentages display one decimal place. Missing metadata/rates are shown as unknown/`N/A`, last in the list. There is no fallback to other sets/formats. Public datasets lag release and may be unavailable for a new set.
 
-Settings, merged card metadata, and compact aggregates are stored under `%LOCALAPPDATA%\MTGA17LandsOverlay`. Imported source files remain where selected. No logs, gameplay, account IDs, or tokens are uploaded. Only missing card IDs go to `https://api.scryfall.com/cards/collection`, in batches with a descriptive User-Agent and delay. Failed lookups are retried when settings are saved. Metadata can be imported locally instead. No automatic updates or telemetry are implemented by the application.
+Settings, download selections, merged card metadata, and compact aggregates are stored under `%LOCALAPPDATA%\MTGA17LandsOverlay`. Manually imported source files remain where selected. Automatic downloads use temporary files under the app data folder and delete them after success, failure, or cancellation. Existing aggregates are replaced only after a full successful download and import. No logs, gameplay, account IDs, or tokens are uploaded. Catalog discovery reads the public-data document on `https://17lands.cdn.prismic.io/api/v2`, the same content used by the public datasets page. Game downloads use exact published set/format URLs on `https://17lands-public.s3.amazonaws.com`. Redirects and other download hosts are rejected, downloads have an inactivity timeout and a 20 GiB compressed size limit, and the complete source file is verified for HTTP length when supplied before import. Catalog access failures leave manual import available. New sets and formats appear only after public game data is published; there is no fallback to restricted website statistics.
+
+Only missing card IDs go to `https://api.scryfall.com/cards/collection`, in batches with a descriptive User-Agent and delay. Failed lookups are retried when settings are saved. Metadata can be imported locally instead. Dataset downloads occur only when you click Download; there are no scheduled refreshes, application auto-updates, or telemetry.
 
 ## Build and verify
 
@@ -31,6 +35,8 @@ Requires .NET 10 SDK. Run from the repository root:
 
 ```powershell
 dotnet run --project tests/Overlay.Tests -c Release
+# Optional read-only smoke check against the real published catalog:
+dotnet run --project tests/Overlay.Tests -c Release -- --live-catalog
 dotnet build src/Overlay.Windows -c Release
 dotnet publish src/Overlay.Windows -c Release -r win-x64 --self-contained true -p:PublishTrimmed=false -o artifacts/MTGA17LandsOverlay
 ```
