@@ -1,0 +1,9 @@
+work/
+**/bin/
+**/obj/
+.vs/
+artifacts/
+*.user
+config.json
+*.csv
+*.csv.gz

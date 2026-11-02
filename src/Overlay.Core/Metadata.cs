@@ -1,0 +1,45 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+
+namespace Overlay.Core;
+public static class Metadata
+{
+    public static async Task<Dictionary<int, Card>> ImportAsync(Stream stream, CancellationToken ct)
+    {
+        var cards = new Dictionary<int, Card>();
+        await foreach (var e in JsonSerializer.DeserializeAsyncEnumerable<JsonElement>(stream, cancellationToken: ct))
+        {
+            var card = Parse(e); if (card is not null) cards[card.ArenaId] = card;
+        }
+        if (cards.Count == 0) throw new InvalidDataException("Expected a Scryfall JSON array containing arena_id, name, and mana_cost or card_faces.");
+        return cards;
+    }
+    public static Card? Parse(JsonElement e)
+    {
+        if (e.ValueKind != JsonValueKind.Object) return null;
+        if (!e.TryGetProperty("arena_id", out var id) || id.ValueKind != JsonValueKind.Number || !id.TryGetInt32(out int arena) || arena <= 0 || !e.TryGetProperty("name", out var n) || n.ValueKind != JsonValueKind.String) return null;
+        var name = n.GetString();
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 500) return null;
+        string cost = e.TryGetProperty("mana_cost", out var m) && m.ValueKind == JsonValueKind.String ? m.GetString() ?? "" : "";
+        if (cost.Length == 0 && e.TryGetProperty("card_faces", out var faces) && faces.ValueKind == JsonValueKind.Array)
+            cost = string.Join(" // ", faces.EnumerateArray().Select(f => f.ValueKind == JsonValueKind.Object && f.TryGetProperty("mana_cost", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() : ""));
+        if (cost.Length > 500) return null;
+        return new(arena, name, cost);
+    }
+    public static async Task<Dictionary<int, Card>> FetchAsync(IEnumerable<int> ids, CancellationToken ct)
+    {
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("MTGA17LandsOverlay/0.1 (+https://github.com/Urzzza/mtga-17lands-overlay)");
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        var result = new Dictionary<int, Card>();
+        foreach (var batch in ids.Distinct().Chunk(75))
+        {
+            using var response = await client.PostAsJsonAsync("https://api.scryfall.com/cards/collection", new { identifiers = batch.Select(id => new { arena_id = id }) }, ct);
+            response.EnsureSuccessStatusCode();
+            using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+            foreach (var e in doc.RootElement.GetProperty("data").EnumerateArray()) { var card = Parse(e); if (card is not null) result[card.ArenaId] = card; }
+            await Task.Delay(150, ct);
+        }
+        return result;
+    }
+}

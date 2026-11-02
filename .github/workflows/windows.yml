@@ -1,0 +1,30 @@
+name: Windows build and portable package
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Core behavior checks
+        run: dotnet run --project tests/Overlay.Tests -c Release
+      - name: Build Windows UI
+        run: dotnet build src/Overlay.Windows -c Release
+      - name: Package portable x64 app (fullscreen acceptance pending)
+        shell: pwsh
+        run: |
+          dotnet publish src/Overlay.Windows -c Release -r win-x64 --self-contained true -p:PublishTrimmed=false -o artifacts/MTGA17LandsOverlay
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item README.md,WINDOWS-ACCEPTANCE.md artifacts/MTGA17LandsOverlay/
+          Compress-Archive artifacts/MTGA17LandsOverlay/* artifacts/MTGA17LandsOverlay-win-x64-unvalidated.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MTGA17LandsOverlay-win-x64-unvalidated
+          path: artifacts/*.zip
