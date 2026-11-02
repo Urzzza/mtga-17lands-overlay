@@ -46,7 +46,7 @@ internal sealed class SettingsWindow : Window
         gameImport.Click += async (_, _) => await ImportAsync(false);
         panel.Children.Add(metadataImport); metadataImport.Click += async (_, _) => await ImportAsync(true);
         Button("Cancel import", () => import?.Cancel());
-        Label("Metadata: import a Scryfall bulk card JSON array for offline use. Missing pack cards are otherwise looked up at api.scryfall.com and cached. No Arena logs are sent.");
+        Label("Card names and mana costs are downloaded automatically from the 17Lands public card index and MTGJSON, then cached. Temporary failures retry automatically. Scryfall JSON import remains available for offline use. No Arena logs are sent.");
         panel.Children.Add(status); status.Text = app.Status ?? "Ready. The tray menu provides preview and hide/show.";
         Closing += (_, e) => { if (import is not null) { import.Cancel(); e.Cancel = true; status.Text = "Cancelling import; close again once complete."; } };
     }

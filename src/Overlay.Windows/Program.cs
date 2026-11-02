@@ -24,7 +24,9 @@ internal sealed class Program : Application
     private string? status;
     private System.Drawing.Icon? trayIcon;
     private Dictionary<int, Card> cards = new();
-    private readonly HashSet<int> attempted = new();
+    private readonly Dictionary<int, DateTimeOffset> attempted = new();
+    private readonly System.Net.Http.HttpClient metadataHttp = PublicDataClient.CreateHttpClient();
+    private CardMetadataClient metadataClient = null!;
     private readonly OverlayWindow overlay = new();
     private readonly DraftReader reader = new();
     private LogTailer tailer = null!;
@@ -50,7 +52,7 @@ internal sealed class Program : Application
         Activity.Write("MTGA 17Lands Overlay started.");
         try { Settings = Store.Read<Settings>("settings.json") ?? new(); Settings.Validate(); cards = Store.Read<Dictionary<int, Card>>("cards.json") ?? new(); }
         catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException or ArgumentException) { Status = "Settings/cache could not be loaded. Open settings to repair."; Settings = new(); }
-        tailer = new(reader);
+        tailer = new(reader); metadataClient = new(metadataHttp, Store);
         tray = new Forms.NotifyIcon { Icon = trayIcon = AppIcon.Tray(), Text = "MTGA 17Lands Overlay", Visible = true, ContextMenuStrip = new Forms.ContextMenuStrip() };
         tray.ContextMenuStrip.Items.Add("Settings / import data", null, (_, _) => Dispatcher.Invoke(OpenSettings));
         tray.ContextMenuStrip.Items.Add("Preview", null, (_, _) => Dispatcher.Invoke(() => { preview = !preview; if (preview) previewScreen = Forms.Screen.FromPoint(Forms.Cursor.Position); Activity.Write(preview ? "Preview enabled — bottom-left corner." : "Preview disabled — following live Arena logs."); }));
@@ -151,7 +153,9 @@ internal sealed class Program : Application
                 { if (preview && !probe) Native.PositionPreview(overlay, Settings.OffsetX, Settings.OffsetY, previewScreen); else overlay.Hide(); }
             }
             else overlay.Hide();
-            var missing = (fetching ? Array.Empty<int>() : pack.Cards).Where(id => !cards.ContainsKey(id) && attempted.Add(id)).ToArray();
+            var missing = (fetching ? Array.Empty<int>() : pack.Cards).Where(id => (!cards.TryGetValue(id, out var card) || card.ManaCost == "?")
+                && (!attempted.TryGetValue(id, out var retryAfter) || DateTimeOffset.UtcNow >= retryAfter)).ToArray();
+            foreach (int id in missing) attempted[id] = DateTimeOffset.UtcNow.AddMinutes(1);
             // Network work never blocks following the log or repositioning the overlay.
             if (missing.Length > 0) _ = RefreshMetadataAsync(missing);
         }
@@ -165,14 +169,19 @@ internal sealed class Program : Application
         fetching = true; Activity.Write($"Looking up metadata for {ids.Length} card(s)…");
         try
         {
-            var fetched = await Metadata.FetchAsync(ids, shutdown.Token);
+            var progress = new Progress<string>(Activity.Write);
+            var fetched = await metadataClient.FetchAsync(ids, progress, shutdown.Token);
             await MergeCardsAsync(fetched, shutdown.Token);
-            Activity.Write($"Card lookup completed: {fetched.Count} definitions cached.");
+            int unresolved = ids.Count(id => !cards.ContainsKey(id));
+            bool missingCosts = ids.Any(id => cards.TryGetValue(id, out var card) && card.ManaCost == "?");
+            Status = unresolved > 0 ? $"{unresolved} card(s) still unknown. Retrying automatically in one minute."
+                : missingCosts ? "Some mana costs unavailable; names and win rates are loaded. Retrying automatically." : null;
+            Activity.Write($"Card lookup completed: {fetched.Count} definitions cached; {unresolved} requested card(s) unresolved.");
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
-        { Status = "Card lookup unavailable. Import Scryfall JSON in settings; save settings to retry."; }
-        finally { fetching = false; }
+        { Status = "Card lookup unavailable. Retrying automatically in one minute."; Activity.Write($"Card lookup error: {ex.GetType().Name}" + (ex is System.Net.Http.HttpRequestException { StatusCode: { } code } ? $" (HTTP {(int)code})" : "")); }
+        finally { foreach (int id in ids) attempted[id] = DateTimeOffset.UtcNow.AddMinutes(1); fetching = false; }
     }
-    protected override void OnExit(ExitEventArgs e) { arenaTimer.Stop(); timer.Stop(); shutdown.Cancel(); tray.Visible = false; tray.Dispose(); trayIcon?.Dispose(); overlay.Close(); base.OnExit(e); }
+    protected override void OnExit(ExitEventArgs e) { arenaTimer.Stop(); timer.Stop(); shutdown.Cancel(); tray.Visible = false; tray.Dispose(); trayIcon?.Dispose(); metadataHttp.Dispose(); overlay.Close(); base.OnExit(e); }
 }

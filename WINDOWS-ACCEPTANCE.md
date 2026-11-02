@@ -24,6 +24,7 @@ Record Windows version, Arena version and installation channel, GPU/driver, moni
 - [ ] Start the app mid-draft; restart Arena; confirm logs recover without resurrecting a picked pack.
 - [ ] Open dataset downloads, select multiple sets/formats, confirm unavailable pairs are skipped, download/import a small selection, cancel another queue, and reopen to confirm selections are remembered.
 - [ ] For a set with Premier but no published Quick Draft data, select Quick Draft only and verify Premier is downloaded as a labeled fallback. Selecting both downloads it once. In a Quick Draft, verify the orange fallback label, log source, and ranked rates. Manually importing genuine Quick Draft statistics must take priority and remove the fallback label.
+- [ ] With no cached card metadata, open a FRA draft and verify public card-index and MTGJSON lookups populate names, costs (including adventure cards), and rates. Restart offline and verify cached metadata remains usable; temporary failures should retry automatically without saving settings.
 - [ ] Import a known dataset, verify a few card rates by hand, cancel a replacement, disconnect network, and verify cached statistics and metadata remain usable.
 
 If the fullscreen visibility/input test fails, **do not release or label fullscreen support as complete**. Capture the failing configuration and stop release work. Do not silently replace the requirement with windowed play, install Overwolf, alter Arena settings, or introduce process hooks. Revisit the rendering design with concrete Windows evidence.

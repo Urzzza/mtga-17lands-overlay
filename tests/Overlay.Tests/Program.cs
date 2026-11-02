@@ -115,6 +115,14 @@ try
         Check(SetNames.Parse(namesJson.RootElement).Count == 1, "set metadata validates codes and normalizes keys");
     await ImporterTests.RunAsync(root, Check);
     await PublicDataTests.RunAsync(root, Check);
+    await CardMetadataTests.RunAsync(root, Check);
+    if (args.Contains("--live-metadata"))
+    {
+        using var http = PublicDataClient.CreateHttpClient();
+        int[] screenshotIds = [106231,106250,106268,106283,106299,106317,106353,106355,106391,106402,106490,106502,106515,106532];
+        var resolved = await new CardMetadataClient(http, new Storage(Path.Combine(root, "live-metadata"))).FetchAsync(screenshotIds, null, default);
+        Check(screenshotIds.All(id => resolved.TryGetValue(id, out var card) && card.ManaCost != "?"), "live metadata resolves all 14 screenshot cards including mana costs");
+    }
     if (args.Contains("--live-catalog"))
     {
         using var http = PublicDataClient.CreateHttpClient();

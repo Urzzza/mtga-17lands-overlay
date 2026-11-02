@@ -1,4 +1,4 @@
-MTGJSON set names (SetNames.json)
+MTGJSON set names (SetNames.json) and dynamically downloaded card mana costs
 Source: https://mtgjson.com/api/v5/SetList.json (snapshot retrieved 2026-11-02)
 License: https://mtgjson.com/license/
 

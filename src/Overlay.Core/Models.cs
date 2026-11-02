@@ -72,7 +72,10 @@ public static class Ranking
         cards.TryGetValue(id, out var card);
         CardStat? stat = null;
         if (card is not null && stats is not null && DatasetSelection.CanUse(pack.Set, pack.Format, stats))
-            stats.Cards.TryGetValue(card.Name, out stat);
+        {
+            if (!stats.Cards.TryGetValue(card.Name, out stat) && card.Name.Contains(" // ", StringComparison.Ordinal))
+                stats.Cards.TryGetValue(card.Name.Split(" // ", 2, StringSplitOptions.None)[0], out stat);
+        }
         return new RankedCard(id, card?.Name ?? $"Unknown card #{id}", card?.ManaCost ?? "?", stat?.Rate, stat?.Games ?? 0);
     }).OrderByDescending(c => c.Rate.HasValue).ThenByDescending(c => c.Rate).ThenBy(c => c.Name, StringComparer.Ordinal).ThenBy(c => c.ArenaId).ToArray();
 }
