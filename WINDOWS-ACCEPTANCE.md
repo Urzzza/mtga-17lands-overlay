@@ -14,6 +14,7 @@ Record Windows version, Arena version and installation channel, GPU/driver, moni
 
 - [ ] Leave the app idle for 30 seconds: no periodic "App running" log messages. Start/close/restart Arena and verify each transition is logged once; launch the overlay with Arena already open and verify it is detected. Repeat with detailed logs disabled to confirm process detection is independent.
 - [ ] Settings and download screens show the activity panel on the right; the running clock updates, log events appear during imports, auto-scroll can be disabled, and clearing/reopening behaves correctly. Verify the new app icon in Explorer, window titles, taskbar, and system tray.
+- [ ] Preview shows diagonally split hybrid mana symbols, with both glyphs readable at 100%, 150%, and 200% scaling. Verify `{B/R}`, `{2/W}`, and the `{W/U}` split-card example, with no installed font or network required.
 - [ ] With Arena foreground, probe is visible and game input passes through every part of it; clicking does not activate the overlay or minimize Arena.
 - [ ] Toggle Alt+Enter ten times. The probe remains visible and reanchors within one second after every transition, without changing Arena's display settings.
 - [ ] Alt+Tab out/in ten times. The panel hides outside Arena and returns when Arena becomes foreground; it never steals focus.

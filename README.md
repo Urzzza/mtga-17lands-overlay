@@ -1,6 +1,6 @@
 # MTGA 17Lands Overlay
 
-Standalone Windows 11 x64 draft overlay. Shows the **current pack**, with English card names, locally rendered mana tokens, and GIH win rate descending. Supports Premier, Traditional, and Quick Draft. No Overwolf or API token required.
+Standalone Windows 11 x64 draft overlay. Shows the **current pack**, with English card names, locally rendered mana symbols, and GIH win rate descending. Supports Premier, Traditional, and Quick Draft. No Overwolf or API token required.
 
 **Status: Windows build and core checks available; live Arena / Alt+Enter fullscreen acceptance has NOT been performed. This is a candidate build, not a fullscreen-validated release.** See [WINDOWS-ACCEPTANCE.md](WINDOWS-ACCEPTANCE.md). No game-process injection, registry changes, or automatic fullscreen switching.
 
@@ -32,6 +32,10 @@ Settings, download selections, cached set names, merged card metadata, and compa
 Set names include a bundled [MTGJSON SetList](https://mtgjson.com/data-models/set-list/) snapshot and fetch new names from `https://mtgjson.com/api/v5/SetList.json` only when the catalog contains an unfamiliar code. Refreshed names are cached; bundled/cached labels work if name lookup fails, and unknown sets retain their code. See THIRD-PARTY-NOTICES.txt for the MTGJSON license.
 
 Card metadata uses `https://17lands-public.s3.amazonaws.com/analysis_data/cards/cards.csv` for exact Arena IDs, set codes, and names, and `https://mtgjson.com/api/v5/{SET}.json` for mana costs. The public index and per-set costs are cached separately and refreshed after a day when needed; expired caches remain usable if refreshing fails. Names retain the front-face identities used by game CSV statistics, while costs include both faces where applicable. If mana costs are unavailable, the app still shows known names and win rates and marks the cost `?`, rather than treating it as a land. Only IDs missing from the public index use Scryfall’s supported `GET /cards/arena/{id}` endpoint, rate-limited to five requests per second. Error logs show status codes, never response bodies. Existing imported Scryfall metadata remains compatible; combined card names can match front-face statistic names. Metadata can also be imported locally. Dataset downloads occur only when you click Download; there are no scheduled refreshes, application auto-updates, or telemetry.
+
+## Mana rendering
+
+The bundled Mana font renders colored mana glyphs offline. Hybrid costs such as `{W/U}` and `{B/R}` use a diagonally split circle with both color glyphs. Monocolored hybrid (`{2/W}`), colorless hybrid (`{C/U}`), colored Phyrexian (`{W/P}`), and hybrid Phyrexian (`{B/R/P}`) costs are also supported. `//` remains a separate divider between card faces. Preview mode includes hybrid examples. The font is bundled under SIL OFL 1.1; attribution, upstream revision, and license text are in THIRD-PARTY-NOTICES.txt.
 
 ## Import performance
 

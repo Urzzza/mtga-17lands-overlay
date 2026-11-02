@@ -89,6 +89,19 @@ try
     var tie = data with { Cards = new() { ["Alpha"] = new(2, 1), ["Beta"] = new(4, 2) } };
     Check(Ranking.Rank(new("x", "DSK", "PremierDraft", 1, 1, [2, 1], true), cards, tie)[0].Name == "Alpha", "alphabetical ties");
     try { Storage.ValidateKey("../escape", "PremierDraft"); throw new Exception("Traversal accepted"); } catch (ArgumentException) { Check(true, "invalid set rejected"); }
+    foreach (string pair in new[] { "W/U", "W/B", "U/B", "U/R", "B/R", "B/G", "R/W", "R/G", "G/W", "G/U" })
+    {
+        var symbol = ManaCost.Parse("{" + pair + "}").Single();
+        Check(symbol.Hybrid && symbol.First + "/" + symbol.Second == pair && !symbol.Phyrexian, "hybrid mana preserves both colors: " + pair);
+    }
+    Check(ManaCost.Parse("{2/W}").Single() is { First: "2", Second: "W", Hybrid: true }, "monocolored hybrid retains generic half");
+    Check(ManaCost.Parse("{C/U}").Single() is { First: "C", Second: "U", Hybrid: true }, "colorless hybrid retains both halves");
+    Check(ManaCost.Parse("{B/R/P}").Single() is { First: "B", Second: "R", Phyrexian: true, Hybrid: true }, "hybrid Phyrexian retains color pair");
+    Check(ManaCost.Parse("{W/P}").Single() is { First: "W", Second: null, Phyrexian: true }, "colored Phyrexian renders one colored symbol");
+    var splitCost = ManaCost.Parse("{B/R} // {2}{W/U}");
+    Check(splitCost.Length == 4 && splitCost[1].Separator && splitCost[0].Hybrid && splitCost[3].Hybrid, "hybrid slash differs from split-card divider");
+    Check(ManaCost.Parse("{w/u}").Single().Text == "W/U" && ManaCost.Parse("{UNKNOWN}").Single().First == "UNKNOWN", "mana rendering normalizes case and keeps unknown text");
+    Check(ManaCost.Parse("").Length == 0 && ManaCost.Parse("?").Length == 0, "empty and unknown mana costs remain distinct from symbols");
     var presence = new ArenaPresence();
     Check(presence.Observe([]) == ArenaPresenceChange.NotRunning && presence.Observe([]) == ArenaPresenceChange.None, "Arena absence is reported once");
     Check(presence.Observe([100]) == ArenaPresenceChange.Started && presence.Observe([100]) == ArenaPresenceChange.None, "Arena launch detected without repeated running messages");

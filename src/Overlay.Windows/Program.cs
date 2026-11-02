@@ -144,7 +144,7 @@ internal sealed class Program : Application
                     : $"{phase}: {pack.Cards.Length} cards; " + (stats is null ? "no matching statistics imported." : stats.Format != pack.Format ? "using Premier Draft statistics as a Quick Draft fallback." : "matching statistics loaded."));
             }
             var rows = Ranking.Rank(pack, cards, stats);
-            if (probe || preview) rows = [new(1, "Fullscreen visibility test", "{2}{W}{U}", .587, 100), new(2, "Split card example", "{R} // {3}{G}", null, 0)];
+            if (probe || preview) rows = [new(1, "Fullscreen visibility test", "{2}{W}{U}", .587, 100), new(2, "Hybrid mana example", "{B/R}{2/W}", .563, 100), new(3, "Split card example", "{W/U} // {3}{G}", null, 0)];
             overlay.Render(pack, rows, stats, Settings, Status, probe);
             if (!hidden && pack.Active)
             {
