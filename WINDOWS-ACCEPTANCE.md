@@ -12,6 +12,7 @@ The probe uses synthetic cards, requires no statistics import, and tracks Arena'
 
 Record Windows version, Arena version and installation channel, GPU/driver, monitor resolution/scale, fullscreen optimizations setting, and candidate commit/build identity. Record PASS/FAIL and observations for each:
 
+- [ ] Leave the app idle for 30 seconds: no periodic "App running" log messages. Start/close/restart Arena and verify each transition is logged once; launch the overlay with Arena already open and verify it is detected. Repeat with detailed logs disabled to confirm process detection is independent.
 - [ ] Settings and download screens show the activity panel on the right; the running clock updates, log events appear during imports, auto-scroll can be disabled, and clearing/reopening behaves correctly. Verify the new app icon in Explorer, window titles, taskbar, and system tray.
 - [ ] With Arena foreground, probe is visible and game input passes through every part of it; clicking does not activate the overlay or minimize Arena.
 - [ ] Toggle Alt+Enter ten times. The probe remains visible and reanchors within one second after every transition, without changing Arena's display settings.
@@ -22,6 +23,7 @@ Record Windows version, Arena version and installation channel, GPU/driver, moni
 - [ ] Verify unlogged P1P1 shows waiting, every logged pack replaces the prior one, each pick clears it, and drafting exit/completion hides it.
 - [ ] Start the app mid-draft; restart Arena; confirm logs recover without resurrecting a picked pack.
 - [ ] Open dataset downloads, select multiple sets/formats, confirm unavailable pairs are skipped, download/import a small selection, cancel another queue, and reopen to confirm selections are remembered.
+- [ ] For a set with Premier but no published Quick Draft data, select Quick Draft only and verify Premier is downloaded as a labeled fallback. Selecting both downloads it once. In a Quick Draft, verify the orange fallback label, log source, and ranked rates. Manually importing genuine Quick Draft statistics must take priority and remove the fallback label.
 - [ ] Import a known dataset, verify a few card rates by hand, cancel a replacement, disconnect network, and verify cached statistics and metadata remain usable.
 
 If the fullscreen visibility/input test fails, **do not release or label fullscreen support as complete**. Capture the failing configuration and stop release work. Do not silently replace the requirement with windowed play, install Overwolf, alter Arena settings, or introduce process hooks. Revisit the rendering design with concrete Windows evidence.

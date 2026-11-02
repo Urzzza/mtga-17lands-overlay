@@ -55,20 +55,22 @@ internal sealed class DownloadWindow : Window
         var cancel = new Button { Content = "Cancel current downloads / import", Margin = new Thickness(0, 8, 0, 0) };
         cancel.Click += (_, _) => operation?.Cancel(); panel.Children.Add(cancel);
         panel.Children.Add(status); panel.Children.Add(results);
-        Label("Only published set/format pairs are downloaded. Missing pairs are skipped, with no substitution. Completed imports replace their existing statistics; failed or cancelled imports preserve the previous data. Temporary source downloads are deleted afterward. Data: 17Lands.com/public_datasets (CC BY 4.0).");
+        Label("Quick Draft uses Premier Draft data for the same set when Quick Draft data is not published. The fallback is labeled in the overlay and activity log. Other missing pairs are skipped. Completed imports replace their existing statistics; failed or cancelled imports preserve the previous data. Temporary source downloads are deleted afterward. Data: 17Lands.com/public_datasets (CC BY 4.0).");
         sets.SelectionChanged += (_, _) => UpdateSelection();
         refresh.Click += async (_, _) => await RefreshAsync();
         download.Click += async (_, _) => await DownloadAsync();
         Loaded += async (_, _) => await RefreshAsync();
         Closing += (_, e) => { if (operation is not null) { operation.Cancel(); e.Cancel = true; status.Text = "Cancelling… Close again when finished."; } };
     }
-    private PublicDataset[] Selected() => catalog.Where(e => sets.SelectedItems.Cast<SetOption>().Select(s => s.Code).Contains(e.Set) && formatChoices[e.Format].IsChecked == true).ToArray();
+    private DatasetRequest[] Selected() => DatasetSelection.Plan(catalog,
+        sets.SelectedItems.Cast<SetOption>().Select(s => s.Code),
+        formatChoices.Where(p => p.Value.IsChecked == true).Select(p => p.Key));
     private void UpdateSelection()
     {
-        int pairs = Selected().Length;
-        int requested = sets.SelectedItems.Count * formatChoices.Values.Count(c => c.IsChecked == true);
-        availability.Text = $"{pairs} published dataset(s) selected. {requested - pairs} unavailable set/format pair(s) will be skipped.";
-        download.IsEnabled = operation is null && pairs > 0;
+        var plan = Selected();
+        int files = DatasetSelection.Downloads(plan).Length;
+        availability.Text = $"{files} dataset download(s). {plan.Count(r => r.IsFallback)} Quick Draft selection(s) use Premier Draft fallback. {plan.Count(r => r.Source is null)} unavailable pair(s) will be skipped.";
+        download.IsEnabled = operation is null && files > 0;
     }
     private void Busy(bool busy)
     {
@@ -112,9 +114,15 @@ internal sealed class DownloadWindow : Window
     private async Task DownloadAsync()
     {
         if (operation is not null) return;
-        var queue = Selected(); if (queue.Length == 0) return;
+        var plan = Selected();
+        var queue = DatasetSelection.Downloads(plan); if (queue.Length == 0) return;
         operation = new(); Busy(true); results.Clear(); int completed = 0, failed = 0;
         app.Activity.Write($"Starting download queue: {queue.Length} dataset(s).");
+        foreach (var request in plan.Where(r => r.IsFallback))
+        {
+            string message = $"{new SetOption(request.Set, SetNames.Name(request.Set, setNames)).Display}: Quick Draft data unavailable; downloading Premier Draft stats as fallback.";
+            app.Activity.Write(message); results.AppendText(message + "\n");
+        }
         try
         {
             await app.Store.WriteAsync("downloads.json", new DownloadSelection(sets.SelectedItems.Cast<SetOption>().Select(s => s.Code).ToArray(), formatChoices.Where(p => p.Value.IsChecked == true).Select(p => p.Key).ToArray()), operation.Token);

@@ -22,6 +22,14 @@ internal static class PublicDataTests
         var catalog = PublicDataClient.ParseCatalog(doc.RootElement);
         check(catalog.Length == 3 && catalog.First(e => e.Format == "PremierDraft").Updated == "2026-11-01", "catalog supported pairs and newest version");
         var entry = catalog.First(e => e.Format == "PremierDraft");
+        var premierOnly = catalog.Where(e => e.Format == "PremierDraft").ToArray();
+        var fallback = DatasetSelection.Plan(premierOnly, ["DSK"], ["QuickDraft"]);
+        check(fallback.Length == 1 && fallback[0].IsFallback && fallback[0].Source?.Format == "PremierDraft", "Quick-only selection queues published Premier fallback");
+        var both = DatasetSelection.Plan(premierOnly, ["DSK"], ["QuickDraft", "PremierDraft"]);
+        check(DatasetSelection.Downloads(both).Length == 1, "Premier and Quick fallback share one download");
+        var exact = DatasetSelection.Plan(catalog, ["DSK"], ["QuickDraft"]);
+        check(!exact[0].IsFallback && exact[0].Source?.Format == "QuickDraft", "published Quick Draft takes priority");
+        check(DatasetSelection.Plan(premierOnly, ["MH3"], ["QuickDraft"])[0].Source is null && DatasetSelection.Plan(premierOnly, ["DSK"], ["TradDraft"])[0].Source is null, "download fallback stays within same set and Quick format");
         check(!PublicDataClient.IsAllowed(entry with { Url = new Uri("http://17lands-public.s3.amazonaws.com" + entry.Url.AbsolutePath) }) &&
               !PublicDataClient.IsAllowed(entry with { Url = new Uri(Url("MH3", "PremierDraft")) }) &&
               !PublicDataClient.IsAllowed(entry with { Url = new Uri(entry.Url + "?redirect=1") }), "download URL host scheme and pair validation");
@@ -40,6 +48,7 @@ internal static class PublicDataTests
         var service = new PublicDataClient(goodHttp);
         await service.DownloadAndImportAsync(entry, storage, null, default);
         var imported = storage.LoadDataset("DSK", "PremierDraft")!;
+        check(storage.ResolveDataset("DSK", "QuickDraft")?.Format == "PremierDraft" && storage.LoadDataset("DSK", "QuickDraft") is null, "downloaded Premier data resolves Quick fallback without relabeling cache");
         check(imported.Cards["Alpha"] == new CardStat(2, 1) && imported.Source == entry.Url.AbsoluteUri, "download automatically imports matching pair");
         await service.DownloadAndImportAsync(entry, storage, null, default);
         check(storage.LoadDataset("DSK", "PremierDraft")!.Cards["Alpha"].Games == 2, "download replacement does not double count");

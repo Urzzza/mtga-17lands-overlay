@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -15,9 +16,10 @@ internal sealed class Program : Application
     internal readonly Storage Store = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MTGA17LandsOverlay"));
     internal Settings Settings = new();
     internal readonly ActivityLog Activity = new();
-    private readonly DispatcherTimer heartbeat = new() { Interval = TimeSpan.FromSeconds(10) };
-    private string phase = "Starting", lastDraft = "";
-    private DateTimeOffset? lastLogCheck;
+    private readonly DispatcherTimer arenaTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly ArenaPresence arenaPresence = new();
+    private string lastDraft = "";
+    private bool processDetectionUnavailable;
     private bool logUnavailable;
     private string? status;
     private System.Drawing.Icon? trayIcon;
@@ -57,10 +59,36 @@ internal sealed class Program : Application
         tray.DoubleClick += (_, _) => Dispatcher.Invoke(OpenSettings);
         overlay.Show(); overlay.Hide();
         timer.Tick += async (_, _) => await TickAsync(); timer.Start();
-        heartbeat.Tick += (_, _) => Activity.Write($"App running — {phase}." + (lastLogCheck.HasValue ? $" Last Arena log check {(DateTimeOffset.UtcNow - lastLogCheck.Value).TotalSeconds:N0}s ago." : ""));
-        heartbeat.Start();
+        arenaTimer.Tick += (_, _) => CheckArenaProcess();
+        CheckArenaProcess(); arenaTimer.Start();
         Activity.Write(probe ? "Fullscreen probe enabled." : $"Log monitoring enabled. {cards.Count:N0} card definitions cached.");
         if (!File.Exists(Path.Combine(Store.Root, "settings.json")) && !probe) OpenSettings();
+    }
+    private void CheckArenaProcess()
+    {
+        try
+        {
+            var processes = Process.GetProcessesByName("MTGA");
+            int[] ids;
+            try { ids = processes.Select(process => process.Id).ToArray(); }
+            finally { foreach (var process in processes) process.Dispose(); }
+            if (processDetectionUnavailable) { processDetectionUnavailable = false; Activity.Write("Arena process detection restored."); }
+            string? message = arenaPresence.Observe(ids) switch
+            {
+                ArenaPresenceChange.NotRunning => "MTG Arena is not running.",
+                ArenaPresenceChange.AlreadyRunning => "MTG Arena detected — already running.",
+                ArenaPresenceChange.Started => "MTG Arena started.",
+                ArenaPresenceChange.Closed => "MTG Arena closed.",
+                ArenaPresenceChange.Restarted => "MTG Arena restarted.",
+                _ => null
+            };
+            if (message is not null) Activity.Write(message);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            if (!processDetectionUnavailable) Activity.Write("Arena process detection temporarily unavailable; will retry.");
+            processDetectionUnavailable = true;
+        }
     }
     internal void OpenSettings() { if (settingsWindow is null) { settingsWindow = new(this); settingsWindow.Closed += (_, _) => settingsWindow = null; settingsWindow.Show(); } else settingsWindow.Activate(); }
     internal async Task SaveSettingsAsync(Settings settings)
@@ -96,24 +124,22 @@ internal sealed class Program : Application
                 try
                 {
                     if (tailPath != Settings.LogPath) { reader.Reset(); tailer = new(reader); tailPath = Settings.LogPath; }
-                    phase = "reading Arena log";
                     var activeTailer = tailer; string path = tailPath;
                     await Task.Run(() => activeTailer.PollAsync(path, shutdown.Token), shutdown.Token);
-                    lastLogCheck = DateTimeOffset.UtcNow;
                     if (logUnavailable) { logUnavailable = false; Status = null; Activity.Write("Arena log available again."); }
                 }
-                catch (IOException) { phase = "waiting for Arena log"; logUnavailable = true; Status = "Arena log unavailable. Enable detailed logs or check the path."; overlay.Hide(); return; }
+                catch (IOException) { logUnavailable = true; Status = "Arena log unavailable. Enable detailed logs or check the path."; overlay.Hide(); return; }
             var pack = probe || preview ? new DraftPack("preview", "DEMO", "PremierDraft", 1, 2, [], true) : reader.Current;
             pack = pack with { Set = string.IsNullOrWhiteSpace(Settings.SetOverride) ? pack.Set : Settings.SetOverride.ToUpperInvariant(), Format = string.IsNullOrWhiteSpace(Settings.FormatOverride) ? pack.Format : Settings.FormatOverride };
-            Dataset? stats = Store.LoadDataset(pack.Set, pack.Format);
-            phase = probe ? "fullscreen probe active" : preview ? "preview active" : !pack.Active ? "waiting for a draft" : pack.Cards.Length == 0 ? "waiting for Arena pack data" : $"tracking pack {pack.Pack}, pick {pack.Pick}";
-            string draftState = $"{pack.Active}:{pack.DraftId}:{pack.Pack}:{pack.Pick}:{string.Join(',', pack.Cards)}:{stats?.Identity}:{preview}:{probe}";
+            Dataset? stats = Store.ResolveDataset(pack.Set, pack.Format);
+            string phase = probe ? "fullscreen probe active" : preview ? "preview active" : !pack.Active ? "waiting for a draft" : pack.Cards.Length == 0 ? "waiting for Arena pack data" : $"tracking pack {pack.Pack}, pick {pack.Pick}";
+            string draftState = $"{pack.Active}:{pack.DraftId}:{pack.Pack}:{pack.Pick}:{string.Join(',', pack.Cards)}:{stats?.Identity}:{stats?.Format}:{preview}:{probe}";
             if (draftState != lastDraft)
             {
                 lastDraft = draftState;
                 Activity.Write(preview || probe ? "Preview active — displaying sample cards." : !pack.Active ? "Waiting for a draft." : pack.Cards.Length == 0 && !preview && !probe
                     ? $"{pack.Set ?? "Unknown set"} / {pack.Format ?? "Unknown format"}: waiting for Arena pack data."
-                    : $"{phase}: {pack.Cards.Length} cards; " + (stats is null ? "no matching statistics imported." : "matching statistics loaded."));
+                    : $"{phase}: {pack.Cards.Length} cards; " + (stats is null ? "no matching statistics imported." : stats.Format != pack.Format ? "using Premier Draft statistics as a Quick Draft fallback." : "matching statistics loaded."));
             }
             var rows = Ranking.Rank(pack, cards, stats);
             if (probe || preview) rows = [new(1, "Fullscreen visibility test", "{2}{W}{U}", .587, 100), new(2, "Split card example", "{R} // {3}{G}", null, 0)];
@@ -131,7 +157,7 @@ internal sealed class Program : Application
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException)
-        { phase = "waiting for valid data"; Status = "Data unavailable: " + ex.Message; overlay.Hide(); }
+        { Status = "Data unavailable: " + ex.Message; overlay.Hide(); }
         finally { busy = false; }
     }
     private async Task RefreshMetadataAsync(int[] ids)
@@ -148,5 +174,5 @@ internal sealed class Program : Application
         { Status = "Card lookup unavailable. Import Scryfall JSON in settings; save settings to retry."; }
         finally { fetching = false; }
     }
-    protected override void OnExit(ExitEventArgs e) { heartbeat.Stop(); timer.Stop(); shutdown.Cancel(); tray.Visible = false; tray.Dispose(); trayIcon?.Dispose(); overlay.Close(); base.OnExit(e); }
+    protected override void OnExit(ExitEventArgs e) { arenaTimer.Stop(); timer.Stop(); shutdown.Cancel(); tray.Visible = false; tray.Dispose(); trayIcon?.Dispose(); overlay.Close(); base.OnExit(e); }
 }

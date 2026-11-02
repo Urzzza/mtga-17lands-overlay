@@ -52,6 +52,8 @@ public sealed class Storage(string root)
         }
         finally { if (File.Exists(temp)) File.Delete(temp); }
     }
+    public Dataset? ResolveDataset(string? set, string? format) => LoadDataset(set, format)
+        ?? (format == "QuickDraft" ? LoadDataset(set, "PremierDraft") : null);
     public Dataset? LoadDataset(string? set, string? format)
     {
         if (set is null || format is null) return null;
@@ -69,7 +71,7 @@ public static class Ranking
     {
         cards.TryGetValue(id, out var card);
         CardStat? stat = null;
-        if (card is not null && stats?.Set.Equals(pack.Set, StringComparison.OrdinalIgnoreCase) == true && stats.Format == pack.Format)
+        if (card is not null && stats is not null && DatasetSelection.CanUse(pack.Set, pack.Format, stats))
             stats.Cards.TryGetValue(card.Name, out stat);
         return new RankedCard(id, card?.Name ?? $"Unknown card #{id}", card?.ManaCost ?? "?", stat?.Rate, stat?.Games ?? 0);
     }).OrderByDescending(c => c.Rate.HasValue).ThenByDescending(c => c.Rate).ThenBy(c => c.Name, StringComparer.Ordinal).ThenBy(c => c.ArenaId).ToArray();

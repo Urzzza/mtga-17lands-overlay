@@ -38,6 +38,8 @@ internal sealed class OverlayWindow : Window
             rate.TextAlignment = TextAlignment.Right; Grid.SetColumn(rate, 2); grid.Children.Add(rate); panel.Children.Add(grid);
         }
         panel.Children.Add(Text("GIH win rates • Data: 17Lands.com/public_datasets", 10, Brushes.LightGray));
+        if (pack.Format == "QuickDraft" && stats?.Format == "PremierDraft")
+            panel.Children.Add(Text("Quick Draft: using Premier Draft stats (fallback)", 11, Brushes.Orange));
         panel.Children.Add(Text(stats is null ? "No matching dataset imported" : $"Coverage: {stats.CoverageStart ?? "unknown"} – {stats.CoverageEnd ?? "unknown"}", 10, Brushes.LightGray));
         if (status is not null) panel.Children.Add(Text(status, 10, Brushes.Orange));
     }

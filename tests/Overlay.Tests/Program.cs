@@ -68,7 +68,7 @@ try
     Check(store.LoadDataset("DSK", "PremierDraft")!.Cards["Alpha"].Games == 2, "repeat import replaces");
     try { await store.WriteAsync(name, compressed, new CancellationToken(true)); throw new Exception("Cancellation ignored"); } catch (OperationCanceledException) { }
     Check(store.LoadDataset("DSK", "PremierDraft")!.Identity == data.Identity && !Directory.GetFiles(root, "*.tmp").Any(), "cancel retains cache and removes temp");
-    Check(store.LoadDataset("DSK", "QuickDraft") is null, "no format fallback");
+    Check(store.LoadDataset("DSK", "QuickDraft") is null, "exact cache lookup preserves source format");
     await File.WriteAllTextAsync(path, "won,opening_hand_Alpha\nTrue,nope\n");
     try { await StatisticsImporter.ImportAsync(path, "DSK", "PremierDraft", null, default); throw new Exception("Invalid accepted"); } catch (InvalidDataException) { Check(true, "invalid CSV rejected"); }
     await File.WriteAllTextAsync(path, "won,\"opening_hand_A, B\",\"drawn_A, B\"\nTrue,1,1\n");
@@ -78,10 +78,23 @@ try
     var cards = await Metadata.ImportAsync(ms, default); Check(cards[2].ManaCost == "{U} // {R}", "split costs");
     var ranked = Ranking.Rank(new("x", "DSK", "PremierDraft", 1, 1, [1, 2, 3], true), cards, data);
     Check(ranked.Select(c => c.ArenaId).SequenceEqual([2, 1, 3]) && ranked[2].Rate is null, "descending ranking missing last");
-    Check(Ranking.Rank(new("x", "DSK", "QuickDraft", 1, 1, [1], true), cards, data)[0].Rate is null, "ranking format mismatch");
+    Check(Ranking.Rank(new("x", "DSK", "QuickDraft", 1, 1, [1], true), cards, data)[0].Rate == .5, "Quick Draft ranking accepts same-set Premier fallback");
+    Check(Ranking.Rank(new("x", "DSK", "TradDraft", 1, 1, [1], true), cards, data)[0].Rate is null, "Traditional Draft does not use Premier fallback");
+    Check(Ranking.Rank(new("x", "MH3", "QuickDraft", 1, 1, [1], true), cards, data)[0].Rate is null, "Quick Draft never falls back to a different set");
+    Check(store.ResolveDataset("DSK", "QuickDraft")?.Format == "PremierDraft", "Quick Draft resolves cached Premier stats with genuine provenance");
+    Check(store.ResolveDataset("MH3", "QuickDraft") is null && store.ResolveDataset("DSK", "TradDraft") is null, "missing set and other formats stay unavailable");
+    var quickData = data with { Format = "QuickDraft", Cards = new() { ["Alpha"] = new CardStat(4, 3) } };
+    await store.WriteAsync(Path.GetFileName(store.DatasetPath("DSK", "QuickDraft")), quickData);
+    Check(store.ResolveDataset("DSK", "QuickDraft")?.Cards["Alpha"].Rate == .75, "genuine Quick Draft statistics take priority over Premier fallback");
     var tie = data with { Cards = new() { ["Alpha"] = new(2, 1), ["Beta"] = new(4, 2) } };
     Check(Ranking.Rank(new("x", "DSK", "PremierDraft", 1, 1, [2, 1], true), cards, tie)[0].Name == "Alpha", "alphabetical ties");
     try { Storage.ValidateKey("../escape", "PremierDraft"); throw new Exception("Traversal accepted"); } catch (ArgumentException) { Check(true, "invalid set rejected"); }
+    var presence = new ArenaPresence();
+    Check(presence.Observe([]) == ArenaPresenceChange.NotRunning && presence.Observe([]) == ArenaPresenceChange.None, "Arena absence is reported once");
+    Check(presence.Observe([100]) == ArenaPresenceChange.Started && presence.Observe([100]) == ArenaPresenceChange.None, "Arena launch detected without repeated running messages");
+    Check(presence.Observe([200]) == ArenaPresenceChange.Restarted, "Arena restart detected between polls");
+    Check(presence.Observe([]) == ArenaPresenceChange.Closed && presence.Observe([]) == ArenaPresenceChange.None, "Arena exit reported once");
+    Check(new ArenaPresence().Observe([300]) == ArenaPresenceChange.AlreadyRunning, "Arena already running when overlay starts");
     var activity = new ActivityLog(3);
     activity.Write("first"); activity.Write("second"); activity.Write("third"); activity.Write("fourth");
     var logSnapshot = activity.Snapshot();
