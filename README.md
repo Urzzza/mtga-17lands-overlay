@@ -2,8 +2,6 @@
 
 Standalone Windows 11 x64 draft overlay. Shows the **current pack**, with English card names, locally rendered mana symbols, and GIH win rate descending. Supports Premier, Traditional, and Quick Draft. No Overwolf or API token required.
 
-**Status: Windows build and core checks available; live Arena / Alt+Enter fullscreen acceptance has NOT been performed. This is a candidate build, not a fullscreen-validated release.** See [WINDOWS-ACCEPTANCE.md](WINDOWS-ACCEPTANCE.md). No game-process injection, registry changes, or automatic fullscreen switching.
-
 ## Run
 
 1. Extract the entire portable ZIP to a writable folder and launch `Overlay.Windows.exe`. The .NET runtime is included. Windows may show an unsigned-app prompt; binaries are not code-signed.
